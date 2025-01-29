@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Watcher</string>
+    <string name="app_desc">Watch hooked method and log to logserver on host.</string>
+</resources>

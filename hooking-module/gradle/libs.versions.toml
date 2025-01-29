@@ -1,0 +1,24 @@
+[versions]
+androidx-junit = "1.2.1"
+appcompat = "1.7.0"
+espresso-core = "3.6.1"
+gson = "2.10.1"
+junit = "4.13.2"
+material = "1.12.0"
+retrofit = "2.7.1"
+xposed-api = "100"
+xposed-service = "100-1.0.0"
+
+[libraries]
+appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
+espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso-core" }
+ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+junit = { module = "junit:junit", version.ref = "junit" }
+libxposed-api = { group = "io.github.libxposed", name = "api", version.ref = "xposed-api" }
+libxposed-service = { group = "io.github.libxposed", name = "service", version.ref = "xposed-service" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
+retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
+
+[plugins]
