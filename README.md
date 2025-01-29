@@ -1,5 +1,13 @@
 # AVD-based Android Sandbox Website for Dynamic Analysis
 
+![Main Page](docs/images/Main%20Page.png)
+
+![Creating VM for Sandbox](docs/images/VM%20Configuration%20Menu.png)
+
+![AVD's Screen](docs/images/AVD's%20Screen.png)
+
+![Log via DataTables](docs/images/Log%20via%20DataTables.png)
+
 This project is created as part of ITS undergraduate thesis task. We attempt to implement an AVD-based, web based Android sandbox, that can be used for Android dynamic analysis. Here is the architecture designed for the programs.
 
 ![Designed Architecture](docs/images/architecture.png)
