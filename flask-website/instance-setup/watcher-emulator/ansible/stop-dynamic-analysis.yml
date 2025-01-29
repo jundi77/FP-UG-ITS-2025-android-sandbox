@@ -1,0 +1,26 @@
+---
+- name: Stop and Reset dynamic analysis starting environment
+  hosts: all
+  tasks:
+    # Just ignore the errors, whatever, just stop 'em
+    - name: Kill the AVD
+      shell: adb emu kill
+      ignore_errors: true
+
+    - name: Stop TigerVNC service
+      become: true
+      systemd:
+        name: "vncserver@:1"
+        state: stopped
+      ignore_errors: true
+
+    - name: Stop AVD logserver service
+      become: true
+      systemd:
+        name: "avdlogserver@9999"
+        state: stopped
+      ignore_errors: true
+
+    - name: Reset dynamic analysis file state
+      shell: rm -rf ~/dynamic_analysis/
+      ignore_errors: true

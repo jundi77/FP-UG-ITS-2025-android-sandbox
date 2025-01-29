@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.main_menu') }}">&lt; Back to main menu</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}Dynamic Analysis Runs{% endblock %}{% endblock %}
+{% block description %}
+    {% if dynamic_analysis_tasks|length > 0 %}
+        <form action="{{ url_for('watcher.clear_queue_del_unfinished_dynamic_analysis_task') }}" method="post">
+            <div class="flex-reverse">
+                <button type="submit" name="action" onclick="if(confirm('Are you sure you want to clear queue and delete unfinished task? Any unfinished progress will be lost.')) { console.log('Task cleaning procedure.'); } else { event.preventDefault(); }">Clear queue and delete unfinished task</button>
+                <div class="flex-fill"></div>
+            </div>
+        </form>
+        <ul>
+        {% for dynamic_analysis_task in dynamic_analysis_tasks %}
+            <li>
+                Run #{{ dynamic_analysis_task['id'] }} is {% if dynamic_analysis_task['start_session'] is none %}queueing.{% else %}{% if dynamic_analysis_task['end_session'] is none %}running.{% else %}done.{% endif %}{% endif %} <a href="{{ url_for('watcher.view_dynamic_analysis_task', task_id=dynamic_analysis_task['id']) }}">See details.</a>
+            </li><br>
+        {% endfor %}
+        </ul>
+    {% else %}
+            <p class="body">You haven't done any android dynamic analysis. <a href="{{ url_for('watcher.new_dynamic_analysis_task') }}">Create?</a></p>
+    {% endif %}
+{% endblock %}

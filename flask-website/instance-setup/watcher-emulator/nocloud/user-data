@@ -1,0 +1,35 @@
+#cloud-config
+bootcmd:
+  - cat /proc/cmdline > /tmp/cmdline
+  - sed -i'' 's/$/ autoinstall/g' /tmp/cmdline
+  - mount -n --bind -o ro /tmp/cmdline /proc/cmdline
+autoinstall:
+  version: 1
+  user-data:
+    hostname: ubuntu
+    users:
+      - name: ubuntu
+        # UbuntuWatcher
+        passwd: '$6$pMySFFmTS0VII3Si$ovlEnA3oaEWgPPTqAktzvgifyliSGQOTSzjTlRMcDcumIU6dZhwkcig7h3j.fB7wPkpxsJkDjkwGfUwycmUPg1'
+        # adm cdrom sudo dip plugdev lxd -> default group found with standard installation
+        groups: kvm, adm, cdrom, sudo, dip, plugdev, lxd
+        # so that user can login with the ubuntu user
+        lock_passwd: False
+        shell: /bin/bash
+  ssh:
+    install-server: yes
+    allow-pw: yes
+  packages:
+    - qemu-guest-agent
+
+  late-commands:
+    # add needed path and global variable
+    # append /target, reference: https://github.com/canonical/subiquity/blob/4913e6f5aef6f0edd38c809ed9675e908386a338/doc/reference/autoinstall-reference.rst#late-commands
+    # PATH is default ubuntu path that i found appended with some android sdk thingy
+    - echo 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/ubuntu/android-sdk/cmdline-tools/latest/bin:/home/ubuntu/android-sdk/platform-tools:/home/ubuntu/android-sdk/emulator' >/target/etc/environment
+    - echo 'ANDROID_SDK_ROOT=/home/ubuntu/android-sdk' >>/target/etc/environment
+    - echo 'DISPLAY=:1' >>/target/etc/environment
+
+    # resize to full allocated vm disk
+    - curtin in-target -- lvextend -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
+    - curtin in-target -- resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv

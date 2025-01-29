@@ -1,0 +1,40 @@
+{% extends 'watcher/vm/new/base.html' %}
+{% block setup_title %}1. Proxmox VE Account{% endblock %}
+{% block setup_description %}We will use Proxmox Virtual Environment as a VM provider for the android virtual device analysis machine. Please provide your Proxmox configuration here.{% endblock %}
+{% block setup_form %}
+    <form method="post">
+        <label for="host_address">Proxmox Host Address</label>
+        <small>Your Proxmox Virtual Environment host address, must be reachable from where this website is deployed.</small>
+        <input type="text" name="host_address" value="{{ request.form['host_address'] }}" placeholder="example: pve.example.com, 127.0.0.1, localhost:9009 (if port is not the default)" required>
+
+        <label for="realm">Proxmox Account Realm</label>
+        <small>The account's authentication realm.</small>
+        <select name="realm" required>
+            <option value="pam" selected>Linux PAM standard authentication</option>
+            <option value="pve">Proxmox VE authentication server</option>
+        </select>
+
+        <label for="username">Username</label>
+        <input type="text" name="username" placeholder="example: root" required>
+
+        <label for="password">Password</label>
+        <input type="password" name="password" placeholder="Your account's password" required>
+
+        <label for="core">VM CPU cores</label>
+        <input type="number" name="core" value="{{ request.form['core'] }}" placeholder="example: 8" min="1" required>
+
+        <label for="memory">VM memory size (in megabytes)</label>
+        <small>Minimum is 4096 megabytes</small>
+        <input type="number" name="memory" value="{{ request.form['memory'] }}" placeholder="example: 4096" min="4096" required>
+
+        <label for="disk">VM disk size (in gigabytes)</label>
+        <small>Minimum is 32 gigabytes (proxmox default)</small>
+        <input type="number" name="disk" value="{{ request.form['disk'] }}" placeholder="example: 32" min="32" required>
+
+        <input type="hidden" name="step" value="1">
+        <div class="flex-reverse">
+            <button type="submit" name="action" value="next">Continue</button>
+            <div class="flex-fill"></div>
+        </div>
+    </form>
+{% endblock %}

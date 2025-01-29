@@ -1,0 +1,19 @@
+{% extends 'watcher/vm/new/base.html' %}
+{% block setup_title %}3. Select Proxmox VE Storage{% endblock %}
+{% block setup_description %}Select the Proxmox VE storage that will be used.{% endblock %}
+{% block setup_form %}
+    <form method="post">
+        <label for="storage">Proxmox Storage</label>
+        <select name="storage" required>
+            {% for storage in storages %}
+                <option value="{{ storage }}">{{ storage }}</option>
+            {% endfor %}
+        </select>
+        <input type="hidden" name="step" value="3">
+        <div class="flex-reverse">
+            <button type="submit" name="action" value="next">Continue</button>
+            <div class="flex-fill"></div>
+            <button type="submit" name="action" value="previous">Back</button>
+        </div>
+    </form>
+{% endblock %}

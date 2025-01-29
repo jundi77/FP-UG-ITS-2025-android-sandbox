@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.main_menu') }}">&lt; Back to main menu</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}Manage Android Emulator VMs{% endblock %}{% endblock %}
+{% block description %}<p class="body">Manage your Android Emulator VMs.</p>{% endblock %}
+{% block content %}
+
+    <article class="post">
+        <header>
+            <div class="">
+                <h1>Android Emulator VM</h1>
+            </div>
+        </header>
+        {% if vms|length > 0 %}
+            <ul>
+                {% for vm in vms %}
+                {% if vm['vm_step'] is not none %}
+                    <li>
+                        <a href="{{ url_for('watcher.vm_details', config_id=vm['id']) }}">
+                            Config #{{ vm['id'] }}, VMID {{ vm['proxmox_vm_android_analysis_id'] }}, VMIP {{ vm['proxmox_vm_android_analysis_ip'] }}
+                        </a>.
+                        {% if vm['lock_dynamic_analysis_task_id'] is not none %}
+                            <p>VM is locked for dynamic analysis <a href="{{ url_for('watcher.view_dynamic_analysis_task', task_id=vm['lock_dynamic_analysis_task_id']) }}">task #{{ vm['lock_dynamic_analysis_task_id'] }}</a>.</p>
+                        {% endif %}
+                    </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="body">You haven't created any VM.</p>
+        {% endif %}
+    </article>
+    <hr>
+    <article class="post">
+        <a href="{{ url_for('watcher.vm_new') }}">Create a new VM</a>
+    </article>
+    <hr>
+{% endblock %}

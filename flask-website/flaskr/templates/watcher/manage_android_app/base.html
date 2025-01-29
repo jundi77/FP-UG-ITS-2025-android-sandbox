@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.main_menu') }}">&lt; Back to main menu</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}Manage Android Application Files{% endblock %}{% endblock %}
+{% block description %}<p class="body">Manage your submitted android application file.</p>{% endblock %}
+{% block content %}
+
+    <article class="post">
+        <header>
+            <div class="">
+                <h1>Submitted Android Application Files</h1>
+            </div>
+        </header>
+        {% if uploaded_apps|length > 0 %}
+            <ul>
+                {% for app in uploaded_apps %}
+                    <li><a href="{{ url_for('watcher.manage_android_app', app_id=app['id']) }}">{{ app['package_name'] }}</a>: {{ app['app_name'] }}{% if app['is_hidden_dynamic_analysis_task'] %} (hidden){% endif %}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="body">You haven't submitted any android application files.</p>
+        {% endif %}
+    </article>
+    <hr>
+    <article class="post">
+        <header>
+            <div class="">
+                <h1>Upload Android Application Files</h1>
+            </div>
+        </header>
+        <form method="post" enctype="multipart/form-data">
+            <label for="host_address">Select Android Application File</label>
+            <input type="file" name="file" id="file" required>
+    
+            <div class="flex-reverse">
+                <button type="submit" name="action">Submit</button>
+                <div class="flex-fill"></div>
+            </div>
+        </form>
+    </article>
+    <hr>
+{% endblock %}

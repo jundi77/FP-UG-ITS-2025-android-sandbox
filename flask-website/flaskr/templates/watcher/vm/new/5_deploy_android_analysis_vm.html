@@ -1,0 +1,58 @@
+{% extends 'watcher/vm/new/base.html' %}
+{% block setup_title %}5. Deploy Android Analysis VM {% if 0 < vm_step <= 4 and error is none %}<img src="{{ url_for('static', filename='loading.gif') }}" alt="loading_gif">{% endif %}{% endblock %}
+{% block setup_description %}{% if vm_step > 0 %}An android analysis VM will be deployed.{% endif %}{% endblock %}
+{% block setup_form %}
+    {% if vm_step > 0 %}
+    <p class="body">Uploading Ubuntu Server 24.04 ISO...</p>
+    {% endif %}
+    {% if vm_step > 1 %}
+        <p class="body">Uploading nocloud android analysis VM configuration...</p>
+    {% endif %}
+    {% if vm_step > 2 %}
+        <p class="body">Creating android analysis VM with nocloud...</p>
+    {% endif %}
+    {% if vm_step > 3 %}
+        <p class="body">
+            Android analysis VM info:
+            <ul>
+                <li>ID: {{ vm['id'] }}</li>
+                <li>Name: {{ vm['name'] }}</li>
+                <li>IP Address: {{ vm['ip'] }}</li>
+            </ul>
+        </p>
+    {% endif %}
+    {% if 0 < vm_step <= 4 %}
+        <script>
+            setTimeout(function() {
+                // So that there is the weird trailing POST request
+                window.location.href = window.location.origin + window.location.pathname + window.location.search;
+            }, 5000); // 5 seconds refresh interval
+        </script>
+        {% if vm_step == 4 %}
+            <p class="body">
+                Configuring android analysis VM with ansible... <br>
+                <code>{{ event|safe }}</code>
+            </p>
+        {% endif %}
+    {% endif %}
+    {% if vm_step > 4 %}
+        <p class="body">
+            Android analysis VM creation is complete. Go to <a href="{{ url_for('watcher.vm_menu') }}">VM menu</a> to see list of VMs.<br>
+        </p>
+    {% endif %}
+    {% if vm_step < 0 %}
+        <p class="body">
+            Sorry, an error has occured.
+        {% if error is not none %}
+            Error: <code>{{ error|safe }}</code>
+        {% endif %}
+        {% if event is not none %}
+            Event: <code>{{ event|safe }}</code>
+        {% endif %}
+        </p>
+        <br>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('watcher.vm_force_delete', config_id=config_id) }}" onclick="if(confirm('Are you sure you want to force delete this VM?')) { console.log('Delete VM'); } else { event.preventDefault(); }">
+            <button type="submit" name="action">Force Delete VM</button>
+        </form>
+    {% endif %}
+{% endblock %}

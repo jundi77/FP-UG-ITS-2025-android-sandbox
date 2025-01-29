@@ -1,0 +1,303 @@
+---
+- name: Root provided SDK if it's new
+  hosts: all
+  tasks:
+    - name: Check if the system image for SDK level is installed
+      shell: |
+          sdkmanager --list_installed | grep -q "system-images;android-{{ analysis_sdk_level }};google_apis;x86_64"
+      register: check_result
+      ignore_errors: true
+
+    - name: Install the SDK level system image if missing
+      shell: |
+        yes | sdkmanager "platforms;android-{{ analysis_sdk_level }}" "system-images;android-{{ analysis_sdk_level }};google_apis;x86_64" 
+      when: check_result.rc != 0
+
+    - name: Create AVD
+      shell: |
+        yes "" | avdmanager create avd -n dynamic_analysis_{{ analysis_sdk_level }} -k "system-images;android-{{ analysis_sdk_level }};google_apis;x86_64"
+      when: check_result.rc != 0
+
+    - name: Kill any running AVD
+      shell: adb emu kill
+      when: check_result.rc != 0
+      ignore_errors: true
+
+    # trying to solve weird issue where adb just... hangs. RRAAAAHHHH!
+    - name: Force restart ADB
+      shell: adb kill-server && adb start-server
+      when: check_result.rc != 0
+      ignore_errors: true
+
+    - name: Start TigerVNC service
+      become: true
+      systemd:
+        name: "vncserver@:1"
+        state: started
+      when: check_result.rc != 0
+
+    - name: Start AVD
+      shell: |
+        nohup emulator -avd dynamic_analysis_{{ analysis_sdk_level }} -no-boot-anim -no-snapshot-save -no-snapshot-load -prop qemu.hw.mainkeys=0 >/tmp/emulator.log 2>&1 &
+      when: check_result.rc != 0
+
+    - name: Wait until AVD finish boot with ADB
+      shell: adb shell getprop sys.boot_completed
+      register: boot_status
+      delay: 2
+      retries: 120
+      until: boot_status.stdout.strip() == "1"
+      failed_when: boot_status.rc != 0 and boot_status.stdout.strip() != "1"
+      changed_when: false
+      when: check_result.rc != 0
+
+    # Replace current ramdisk DIRECTLY, no backup, yolo
+    - name: Run Magisk patch AVD system's ramdisk
+      args:
+        chdir: ~/Magisk
+      shell: |
+        ~/Magisk/build.py avd_patch -s ~/android-sdk/system-images/android-{{ analysis_sdk_level }}/google_apis/x86_64/ramdisk.img ~/android-sdk/system-images/android-{{ analysis_sdk_level }}/google_apis/x86_64/ramdisk.img
+      when: check_result.rc != 0
+
+    - name: Kill AVD
+      shell: adb emu kill
+      when: check_result.rc != 0
+
+    - name: Start default AVD again
+      shell: |
+        nohup emulator -avd dynamic_analysis_{{ analysis_sdk_level }} -no-boot-anim -no-snapshot-save -no-snapshot-load -prop qemu.hw.mainkeys=0 >/tmp/emulator.log 2>&1 &
+      when: check_result.rc != 0
+
+    - name: Wait until AVD finish boot with ADB
+      shell: adb shell getprop sys.boot_completed
+      register: boot_status
+      delay: 2
+      retries: 120
+      until: boot_status.stdout.strip() == "1"
+      failed_when: boot_status.rc != 0 and boot_status.stdout.strip() != "1"
+      changed_when: false
+      when: check_result.rc != 0
+
+    - name: Run Magisk patch AVD
+      args:
+        chdir: ~/Magisk
+      shell: ~/Magisk/build.py emulator -s
+      when: check_result.rc != 0
+
+    - name: Wait until AVD finish boot with ADB
+      shell: adb shell getprop sys.boot_completed
+      register: boot_status
+      delay: 2
+      retries: 120
+      until: boot_status.stdout.strip() == "1"
+      failed_when: boot_status.rc != 0 and boot_status.stdout.strip() != "1"
+      changed_when: false
+      when: check_result.rc != 0
+
+    - name: Push LSPosed_mod on the AVD
+      shell: adb push ~/lsposed.zip /data/local/tmp/lsposed.zip
+      when: check_result.rc != 0
+
+    - name: Install LSPosed_mod on the AVD
+      shell: adb shell su -c magisk --install-module /data/local/tmp/lsposed.zip
+      when: check_result.rc != 0
+    
+    - name: Push initialized LSPosed_mod sqlite database (.db)
+      shell: adb push ~/modules_config.db /data/local/tmp/modules_config.db
+      when: check_result.rc != 0
+
+    - name: Push initialized LSPosed_mod sqlite database (.db-shm)
+      shell: adb push ~/modules_config.db-shm /data/local/tmp/modules_config.db-shm
+      when: check_result.rc != 0
+
+    - name: Push initialized LSPosed_mod sqlite database (.db-wal)
+      shell: adb push ~/modules_config.db-wal /data/local/tmp/modules_config.db-wal
+      when: check_result.rc != 0
+
+    - name: Apply initialized LSPosed_mod sqlite database
+      shell: |
+        adb shell su -c mkdir /data/adb/lspd/config && adb shell su -c cp /data/local/tmp/modules_config.db /data/local/tmp/modules_config.db-shm /data/local/tmp/modules_config.db-wal /data/adb/lspd/config/
+      when: check_result.rc != 0
+
+    - name: Reboot AVD
+      shell: adb reboot
+      when: check_result.rc != 0
+
+    - name: Wait until AVD finish boot with ADB
+      shell: adb shell getprop sys.boot_completed
+      register: boot_status
+      delay: 2
+      retries: 120
+      until: boot_status.stdout.strip() == "1"
+      failed_when: boot_status.rc != 0 and boot_status.stdout.strip() != "1"
+      changed_when: false
+      when: check_result.rc != 0
+
+    - name: Push hooker's APK into the AVD
+      shell: adb push ~/hooker.apk /data/local/tmp/hooker.apk
+      when: check_result.rc != 0
+
+    - name: Install hooker's APK into the AVD
+      shell: adb shell pm install /data/local/tmp/hooker.apk
+      when: check_result.rc != 0
+
+    - name: Create clean_state snapshot for the AVD
+      shell: adb emu avd snapshot save clean_state
+      when: check_result.rc != 0
+
+    - name: Shutdown AVD
+      shell: adb emu kill
+      when: check_result.rc != 0
+
+    - name: Stop TigerVNC service
+      become: true
+      systemd:
+        name: "vncserver@:1"
+        state: started
+      when: check_result.rc != 0
+
+- name: Configure VNC
+  hosts: all
+  tasks:
+    - name: Create new TigerVNC server password
+      shell: "echo {{ vnc_password }} | /usr/bin/vncpasswd -f > ~/.vnc/passwd"
+
+    - name: Set VNC passwd permission
+      file:
+        path: "~/.vnc/passwd"
+        mode: '0600'
+        state: file
+
+- name: Configure dynamic analysis starting environment
+  hosts: all
+  tasks:
+    - name: Reset dynamic analysis file state
+      shell: rm -rf ~/dynamic_analysis/
+      ignore_errors: true
+
+    - name: Make dynamic analysis folder
+      file:
+        state: directory
+        path: "~/dynamic_analysis/android_apps/"
+        recurse: yes
+        mode: "0755"
+
+    - name: Copy needed apps that will be installed in the AVD
+      copy:
+        src: "{{ item.src }}"
+        dest: "~/dynamic_analysis/android_apps/{{ item.filename }}"
+        mode: "0755"
+      loop: "{{ android_app_files }}"
+
+    - name: Create config for packages that needs to be watched in AVD
+      copy:
+        dest: "~/dynamic_analysis/hook_list"
+        content: "{{ analysis_watch_packages }}"
+        mode: "0755"
+
+    - name: Make file into unix format (dos2unix)
+      shell: dos2unix ~/dynamic_analysis/hook_list
+
+    # to ensure enwline always exists, somehow if there is not any the hook loop is not run
+    - name: Ensure newline at end of file
+      lineinfile:
+        path: "~/dynamic_analysis/hook_list"
+        create: yes
+        state: present
+        line: ""
+        insertafter: EOF
+
+    - name: Create config for relating the analysis to the task ID
+      copy:
+        dest: "~/dynamic_analysis/task_id"
+        content: "{{ task_id }}"
+        mode: "0755"
+
+    - name: Start (or restart) AVD logserver service
+      become: true
+      systemd:
+        name: "avdlogserver@9999"
+        state: restarted
+
+- name: Run the dynamic analysis
+  hosts: all
+  tasks:
+    - name: Kill the AVD if any is running
+      shell: adb emu kill
+      ignore_errors: true
+
+    - name: Start TigerVNC service
+      become: true
+      systemd:
+        name: "vncserver@:1"
+        state: restarted
+
+    # trying to solve weird issue where adb just... hangs. RRAAAAHHHH!
+    - name: Force restart ADB
+      shell: adb kill-server && adb start-server
+      when: check_result.rc != 0
+      ignore_errors: true
+
+    - name: Start the AVD
+      shell: |
+        nohup emulator -avd dynamic_analysis_{{ analysis_sdk_level }} -snapshot clean_state -no-snapshot-save -no-boot-anim -prop qemu.hw.mainkeys=0 >/tmp/emulator.log 2>&1 &
+
+    - name: Wait until AVD finish boot with ADB
+      shell: adb shell getprop sys.boot_completed
+      register: boot_status
+      delay: 2
+      retries: 120
+      until: boot_status.stdout.strip() == "1"
+      failed_when: boot_status.rc != 0 and boot_status.stdout.strip() != "1"
+      changed_when: false
+
+    - name: Disable internet on AVD if set to no
+      shell: |
+        adb shell svc data disable
+        adb shell svc wifi disable
+      when: analysis_no_internet
+
+    - name: Enable navigation button in AVD
+      shell: |
+        adb shell cmd overlay disable com.android.internal.systemui.navbar.gestural
+      ignore_errors: true
+
+    - name: Push and install required apps to AVD
+      shell: |
+        adb push ~/dynamic_analysis/android_apps/{{ item.filename }} /data/local/tmp/{{ item.filename }} &&
+          adb shell pm install /data/local/tmp/{{ item.filename }}
+
+      loop: "{{ android_app_files }}"
+
+    - name: Link AVD port 9999 to host 9999 (logserver)
+      shell: adb reverse tcp:9999 tcp:9999
+
+    - name: Configure AVD watcher to hook to packages
+      shell: |
+        while IFS= read -r line; do
+
+          # trim whitespace in beginning and end of line
+          trimmed_line=$(echo "$line" | xargs)
+
+          # skip empty line
+          if [ -z "$trimmed_line" ]; then
+            continue
+          fi
+
+          # if there is no & on the end of the adb command it will only run for the first line
+          adb shell su -c "/data/adb/lspd/bin/cli scope set -i -a its.android.analysis.lsposed.mods.watcher ${trimmed_line}/0" &
+
+          # just making sure that there is no weird result, a bit paranoid here
+          sleep 1
+        done <~/dynamic_analysis/hook_list
+
+    - name: Enable hooker from LSPosed_mod
+      shell: adb shell su -c /data/adb/lspd/bin/cli modules set its.android.analysis.lsposed.mods.watcher -e
+
+    - name: Run required apps
+      shell: "adb shell monkey -p {{ analysis_run_package }} -c android.intent.category.LAUNCHER 1"
+
+    # it keeps GOING OUT of the app
+    - name: Run User Simulation (CONDITIONAL)
+      shell: "adb shell monkey -p {{ analysis_run_package }} --throttle 300 9999999 &"
+      when: not analysis_is_manual_control

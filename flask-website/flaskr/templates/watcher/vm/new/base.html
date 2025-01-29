@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.vm_menu') }}">&lt; Back to VM menu page</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}VM Creation Setup {% if config_id is not none %}#{{ config_id }}{% endif %}{% endblock %}{% endblock %}
+{% block description %}<p class="body">Setup the virtual machine (VM) used to run the android virtual device analysis machine.</p>{% endblock %}
+{% block content %}
+    <article class="post">
+        <header>
+            <div class="">
+                <h1>{% block setup_title %}{% endblock %}</h1>
+            </div>
+        </header>
+        <p class="body">{% block setup_description %}{% endblock %}</p>
+        {% block setup_form %}{% endblock %}
+    </article>
+    <hr>
+{% endblock %}

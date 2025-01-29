@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.main_menu') }}">&lt; Back to main menu</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}New Dynamic Analysis Task{% endblock %}{% endblock %}
+{% block description %}
+<p class="body">Create new dynamic analysis task. Upload your application first if you haven't.</p>
+<hr>
+<article class="post">
+    <form id="new-dynamic-analysis-task" method="post">
+        {% if available_apps|length > 0 %}
+            <label for="config">Proxmox configs</label>
+            <select name="config" required>
+                {% for config in configs %}
+                    <option value="{{ config['id'] }}">#{{ config['id'] }}, VMID {{ config['proxmox_vm_android_analysis_id'] }}, VMIP {{ config['proxmox_vm_android_analysis_ip'] }}, queue {{ config['queue_count'] }}</option>
+                {% endfor %}
+            </select>
+            <label for="sdk_level">
+                What is your target SDK level? (max 34, min 29)
+            </label>
+            <input type="number" name="sdk_level" id="sdk_level" value="33" min="29" max="34" required>
+            <label for="session_duration">
+                How long will the session take (in minutes)? Min. 1 minute, max. 60 minutes.
+            </label>
+            <input type="number" name="session_duration" id="session_duration" value="5" min="1" max="60" required>
+            <fieldset>
+                <legend>
+                    Select android app that needs to be installed.
+                </legend>
+                {% for app in available_apps %}
+                    <label>
+                        <input type="checkbox" name="install_packages[]" value="{{ app['id'] }}"> {{ app['package_name'] }}, app name {{ app['app_name'] }}
+                    </label><br>
+                {% endfor %}
+            </fieldset>
+            <br>
+            <label for="run_package">
+                Type android <strong>package</strong> that will be run inside the VM.
+            </label>
+            <input type="text" name="run_package" id="run_package" required>
+            <br>
+            <label for="watch_packages">
+                Type android <strong>package</strong> that needs to be watched.<br>
+                <strong>Warning</strong>: Watcher cannot separate the reports if you typed more than one package, meaning you will receive a report of two or more apps concatenated.
+            </label>
+            <textarea name="watch_packages" id="watch_packages" required></textarea>
+            <label>
+                <input type="checkbox" name="no_internet"> Android emulator will have <strong>no</strong> internet connection.
+            </label><br>
+            <label>
+                <input type="checkbox" name="is_manual_control"> Android emulator will be manually controlled. 
+            </label><br>
+            <div class="flex-reverse">
+                <button type="submit" name="action">Submit</button>
+                <div class="flex-fill"></div>
+            </div>
+        {% else %}
+            <p class="body">You haven't submitted any or hide all of your android application files. Upload or unhide it <a href="{{ url_for('watcher.manage_android_apps') }}">here</a>.</p>
+        {% endif %}
+        
+    </form>
+    <script>
+        document.getElementById('new-dynamic-analysis-task').addEventListener('submit', function (event) {
+            let installPkgs = document.querySelectorAll('input[name="install_packages[]"]:checked')
+            if (installPkgs.length === 0) {
+                event.preventDefault();
+                alert('You need to choose at least 1 (one) package to install in the task.')
+                return
+            }
+        })
+    </script>
+</article>
+{% endblock %}

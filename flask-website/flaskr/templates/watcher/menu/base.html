@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}{% block tab_title %}Main Menu{% endblock %}{% endblock %}
+{% block description %}
+
+<hr>
+<div>
+    <h1><a href="{{ url_for('watcher.vm_menu') }}" class="action">Manage Android Emulator VMs</a></h1>
+    <p>Manage android emulator VM.</p>
+</div>
+<hr>
+
+<div>
+    <h1><a href="{{ url_for('watcher.manage_android_apps') }}" class="action">Manage Android Application Files</a></h1>
+    <p>Manage your submitted android application file.</p>
+</div>
+<hr>
+<div>
+    <h1><a href="{{ url_for('watcher.manage_dynamic_analysis_task') }}" class="action">Dynamic Analysis Runs</a></h1>
+    <p>See your dynamic analysis runs.</p>
+</div>
+<hr>
+<div>
+    <h1><a href="{{ url_for('watcher.new_dynamic_analysis_task') }}" class="action">New Dynamic Analysis Task</a></h1>
+    <p>Create new dynamic analysis task. Upload your application first if you haven't.</p>
+</div>
+{% endblock %}

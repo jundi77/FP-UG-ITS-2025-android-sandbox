@@ -1,0 +1,19 @@
+{% extends 'watcher/vm/new/base.html' %}
+{% block setup_title %}4. Select Proxmox VE Bridge{% endblock %}
+{% block setup_description %}Select the Proxmox VE bridge that will be used for VM networking.{% endblock %}
+{% block setup_form %}
+    <form method="post">
+        <label for="bridge">Proxmox Bridge for Node</label>
+        <select name="bridge" required>
+            {% for bridge in bridges %}
+                <option value="{{ bridge }}">{{ bridge }}</option>
+            {% endfor %}
+        </select>
+        <input type="hidden" name="step" value="4">
+        <div class="flex-reverse">
+            <button type="submit" name="action" value="next">Continue</button>
+            <div class="flex-fill"></div>
+            <button type="submit" name="action" value="previous">Back</button>
+        </div>
+    </form>
+{% endblock %}

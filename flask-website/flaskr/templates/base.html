@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block tab_title %}{% endblock %} - Watcher</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head_tags %}{% endblock %}
+</head>
+<body>
+    <nav>
+        <h1>Watcher Web Management</h1>
+        <ul>
+        {% block menu %}{% endblock %}
+        {% if g.user %}
+            <li><span>{{ g.user['username'] }}</span></li>
+            <li><a href="{{ url_for('auth.change_pass') }}">Change Password</a></li>
+            <li><a href="{{ url_for('auth.logout') }}">Logout</a></li>
+        {% else %}
+            <li><a href="{{ url_for('auth.register') }}">Register</a></li>
+            <li><a href="{{ url_for('auth.login') }}">Login</a></li>
+        {% endif %}
+        </ul>
+    </nav>
+    <nav>
+        <ul>
+            {% block prev_menu %}{% endblock %}
+        </ul>
+    </nav>
+    <section class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message|safe }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <h1>{% block title %}{% endblock %}</h1>
+        <article class="post">
+            {% block description %}{% endblock %}
+        </article>
+        <hr>
+        {% block content %}
+        {% endblock %}  
+    </section>
+    {% block bottom_tags %}{% endblock %}
+</body>
+</html>

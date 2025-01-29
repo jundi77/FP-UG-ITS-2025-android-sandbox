@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.manage_android_apps') }}">&lt; Back to manage android app page</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}Submitted Android Application{% endblock %}{% endblock %}
+{% block description %}
+<h2>{{ app['package_name'] }}</h2>
+<small>App name: {{ app['app_name'] }}</small><br>
+<small>{% if app['is_hidden_dynamic_analysis_task'] %}Hidden{% else %}Visible{% endif %} on dynamic analysis task menu.</small>
+<div>
+</div>
+{% endblock %}
+{% block content %}
+    <article class="post">  
+        <form method="post">
+            <label for="host_address">Delete This Android Application</label>
+            <div>
+                <button type="submit" name="action" value="delete" onclick="if(confirm('Are you sure you want to soft delete this app?')) { console.log('Soft delete app'); } else { event.preventDefault(); }">Soft Delete</button>
+                <div class="flex-fill"></div>
+            </div>
+            <hr>
+            <label for="host_address">{% if app['is_hidden_dynamic_analysis_task'] %}Show{% else %}Hide{% endif %} This Android Application</label>
+            <div>
+                <button type="submit" name="action" value="hide">{% if app['is_hidden_dynamic_analysis_task'] %}Show{% else %}Hide{% endif %} in Dynamic Analysis Task</button>
+                <div class="flex-fill"></div>
+            </div>
+        </form>
+    </article>
+    <hr>
+{% endblock %}

@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+
+{% block head_tags %}
+{% if dynamic_analysis_task['start_session'] is not none %}
+    {% include 'utils/datatable_css.html' %}
+{% endif %}
+{% endblock %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.manage_dynamic_analysis_task') }}">&lt; Back to task list menu</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}Dynamic Analysis Task Run #{{ dynamic_analysis_task['id'] }}{% if dynamic_analysis_task['end_session'] is none %}<span class="show-when-running"> <img src="{{ url_for('static', filename='loading.gif') }}" alt="loading_gif"></span>{% endif %}{% endblock %}{% endblock %}
+{% block description %}
+    {% if dynamic_analysis_task['start_session'] is none %}
+        <p>Task haven't started yet. Waiting queue: {{ queue_dynamic_analysis_task['count'] }}.</p>
+        <p>
+            Will use config #{{ config['id'] }}, VMID {{ config['proxmox_vm_android_analysis_id'] }}, VMIP {{ config['proxmox_vm_android_analysis_ip'] }}.
+        </p>
+
+        {% if dynamic_analysis_task['event_message'] is not none %}
+            <p>
+                For info, here's what is happening on that VM.<br>
+                <code>{{ dynamic_analysis_task['event_message']|safe }}</code>
+            </p>
+        {% endif %}
+
+        <script>
+            setTimeout(function() {
+                // So that there is the weird trailing POST request
+                window.location.href = window.location.origin + window.location.pathname + window.location.search;
+            }, 5000); // 5 seconds refresh interval
+        </script>    
+    {% else %}
+        {% if dynamic_analysis_task['end_session'] is none %}
+            <p><span id="task-running-status">Task is being run</span>. Started at {{ dynamic_analysis_task['start_session'] }}. (server time)</p>
+            <p>Dynamic analysis session will take around {{ dynamic_analysis_task['session_duration'] }} minutes.</p>
+            <p>NoVNC password is <code>{{ dynamic_analysis_task['vnc_password'] }}</code> .</p>
+            {% if dynamic_analysis_task['no_internet'] %}
+                <p>You selected <code>no internet</code> option. There will be no internet inside the AVD.</p>
+            {% endif %}
+            {% if dynamic_analysis_task['is_manual_control'] %}
+                <p>You selected <code>manual control</code> option. There will be no user interaction simulation.</p>
+            {% else %}
+                <p>User interaction is simulated with adb <code>monkey</code>.</p>
+            {% endif %}
+        {% else %}
+            <p>Task is done. Started at {{ dynamic_analysis_task['start_session'] }}, ended at {{ dynamic_analysis_task['end_session'] }} (server time).</p>
+            {% if dynamic_analysis_task['is_manual_control'] %}
+                <p>You selected <code>manual control</code> option. There is no simulation for user interaction.</p>
+            {% else %}
+                <p>User interaction is simulated with adb <code>monkey</code>.</p>
+            {% endif %}
+        {% endif %}
+        <p>
+            Using config #{{ config['id'] }}, VMID {{ config['proxmox_vm_android_analysis_id'] }}, VMIP {{ config['proxmox_vm_android_analysis_ip'] }}.
+        </p>
+    {% endif %}
+    {% if dynamic_analysis_task['error_message'] is not none %}
+        <p class="flash error">Error occured: {{ dynamic_analysis_task['error_message']|safe }}.</p>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    <article class="post">
+        <p>List of installed android apps:</p>
+        <ul>
+            {% for app in dynamic_analysis_app %}
+                <li>{{ app['package_name'] }}, app name {{ app['app_name'] }}</li>
+            {% endfor %}
+        </ul>
+    </article>
+    <hr>
+    <article class="post">
+        <p>Set to run <code>{{ dynamic_analysis_task['run_package'] }}</code> after Android Virtual Device is ready.</p>
+        <p>Using SDK level {{ dynamic_analysis_task['sdk_level'] }}.</p>
+        <p>There'll be <strong>{% if dynamic_analysis_task['no_internet'] %}no {% endif %}internet</strong> inside the AVD.</p>
+    </article>
+    <hr>
+    <article class="post">
+        <p>List of watched android packages:</p>
+        <textarea name="watch_packages" id="watch_packages" readonly>{{ dynamic_analysis_task['watch_packages'] }}</textarea>
+    </article>
+    <hr>
+    {% if dynamic_analysis_task['start_session'] is not none %}
+        {% if dynamic_analysis_task['end_session'] is none %}
+            <article class="post" id="novnc-area">
+                <header>
+                    <div class="">
+                        <h1>Android Emulator Screen<span class="show-when-running"> <img src="{{ url_for('static', filename='loading.gif') }}" alt="loading_gif"></span></h1>
+                    </div>
+                </header>
+                <p id="novnc-status"></p>
+                <div id="novnc-container"></div>
+                <br>
+                <form id="run-adb-cmd" method="post">
+                    <label for="analysis-adb-shell-cmd">
+                        Type command that will be run through <code>adb shell</code> inside the AVD. (It's <strong>rooted</strong> shell so be careful.)<br>
+                    </label>
+                    <br>
+                    <input type="text" name="analysis-adb-shell-cmd" id="analysis-adb-shell-cmd" required>
+                    <div class="flex-reverse">
+                        <button type="submit" name="action">Submit</button>
+                        <div class="flex-fill"></div>
+                    </div>
+                </form>
+                <script>
+                    document.getElementById('run-adb-cmd').addEventListener('submit', function (event) {
+                        event.preventDefault()
+
+                        let formData = new FormData(this)
+
+                        fetch("{{ url_for('watcher.run_adb_shell_dynamic_analysis_task', task_id=dynamic_analysis_task['id']) }}", {
+                            method: 'POST',
+                            body: formData
+                        }).then(response => {
+                            if (response.ok) {
+                                return response
+                            }
+                            throw new Error('Failed to send command')
+                        }).then(data => {
+                            console.log(data)
+                        }).catch(error => {
+                            alert('Failed to send command')
+                            console.error(error)
+                        })
+                    })
+                </script>
+                <script type="module">
+                    import RFB from "{{ url_for('static', filename='novnc/core/rfb.js') }}"
+            
+                    const vncHost = window.location.hostname
+                    const vncWebsocketPort = 6080
+            
+                    const websocketUrl = `ws://${vncHost}:${vncWebsocketPort}?token={{ dynamic_analysis_task['id'] }}`
+            
+                    let rfb = null
+                    let reconnecting = null
+            
+                    function vncConnect() {
+                        try {
+                            console.log('Connecting to vnc...')
+            
+                            rfb = new RFB(
+                                document.getElementById('novnc-container'),
+                                websocketUrl,
+                                { credentials: {password: "{{ dynamic_analysis_task['vnc_password'] }}"} }
+                            )
+                    
+                            rfb.addEventListener('connect', () => {
+                                console.log('VNC connected')
+                                document.getElementById('novnc-status').innerHTML=""
+                                if (reconnecting) {
+                                    clearTimeout(reconnecting)
+                                    reconnecting = null
+                                }
+    
+                                window.rfb = rfb
+    
+                                rfb.clipViewport = true
+                                rfb.scaleViewport = true
+                                rfb.clipCursor = true
+                                rfb.pointerRelative = true
+                                rfb.showDotCursor = true
+                                rfb.viewOnly = false
+                            })
+                
+                            rfb.addEventListener('disconnect', (e) => {
+                                console.error('VNC disconnected: ', e)
+                                document.getElementById('novnc-status').innerHTML="VNC disconnected. Retrying every 5 seconds..."
+                                attemptVncReconnect()
+                            })
+    
+                            // Solve very annoying double cursor problem
+                            rfb._canvas.addEventListener("mouseenter", () => {
+                                if (rfb && rfb._cursor) {
+                                    rfb._cursor.attach(rfb._canvas); // Attach the cursor when the mouse enters
+                                    rfb._refreshCursor() 
+                                }
+                            });
+                            rfb._canvas.addEventListener("mouseleave", () => {
+                                if (rfb && rfb._cursor) {
+                                    rfb._cursor.detach(); // Detach the cursor when the mouse leaves
+                                }
+                            });
+    
+                            rfb.clipViewport = true
+                            rfb.scaleViewport = true
+                            rfb.clipCursor = true
+                            rfb.pointerRelative = true
+                            rfb.showDotCursor = true
+                            rfb.viewOnly = false
+    
+                        } catch (err) {
+                            console.error(err)
+                        }
+                    }
+            
+                    function attemptVncReconnect() {
+                        if (!reconnecting) {
+                            reconnecting = setTimeout(() => {
+                                console.log('reconnecting')
+                                reconnecting = null
+                                vncConnect()
+                            }, 5000) // 5 seconds
+                        }
+                    }
+            
+                    vncConnect()
+                </script>
+                <hr>
+            </article>
+        {% endif %}
+        <article class="post">
+            <header>
+                <div class="">
+                    <h1>Logs{% if dynamic_analysis_task['end_session'] is none %}<span class="show-when-running"> <img src="{{ url_for('static', filename='loading.gif') }}" alt="loading_gif"></span>{% endif %}</h1>
+                </div>
+            </header>
+            <p id="task-stopped"></p>
+            <table id="data-table" class="display">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Action</th>
+                        <th>Message</th>
+                        <th>Additional Data (json)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </article>
+        <hr>
+        {% include 'utils/datatable_js.html' %}
+        <script>
+            let stopQueryLog = false;
+            let lastId = 0;
+            let updateInterval;
+            let table;
+
+            $(document).ready(function() {
+                table = $('#data-table').DataTable({
+                    dom: 'Bfrtip',
+                    buttons: [
+                        'colvis',
+                        'copyHtml5',
+                        'excelHtml5',
+                        'csvHtml5',
+                    ],
+                    scrollCollapse: true,
+                    scrollY: 500,
+                    scroller: true,
+                    ajax: function(data, callback, settings) {
+                        if (stopQueryLog) {
+                            clearInterval(updateInterval)
+                            return
+                        }
+                        $.ajax({
+                            url: '/api/logs/{{ dynamic_analysis_task["id"] }}',
+                            method: 'GET',
+                            data: {last_id: lastId},
+                            success: function (response) {
+    
+                                if (response.data && response.data.length > 0) {
+                                    if (lastId > 0) {
+                                        table.rows.add(response.data).draw(false)
+                                        let num_rows = table.page.info().recordsTotal
+                                        table.page('last').draw(false);
+                                        table.row(num_rows - 1).scrollTo()
+                                    } else {
+                                        callback({data: response.data})
+                                    }
+
+                                    lastId = Math.max(...response.data.map(row => row.id))
+                                }
+    
+                                if (response.stop_live_log) {
+                                    stopQueryLog = true
+                                    clearInterval(updateInterval)
+                                    document.getElementById('task-stopped').innerText = "Task has been finished."
+                                    document.getElementById('task-running-status').innerText = "Task is done"
+                                    document.getElementById('run-adb-cmd').remove()
+                                    document.getElementById('novnc-area').remove()
+                                    document.querySelectorAll('.show-when-running').forEach(i => i.remove())
+                                    alert('Task is done.')
+                                }
+                            },
+                            error: () => console.error("Failed to fetch log")
+                        });
+    
+                    },
+                    columns: [
+                        {data: 'log_timestamp'},
+                        {data: 'log_type'},
+                        {data: 'log_action'},
+                        {data: 'log_msg'},
+                        {data: 'log_data', render: function (data, type, full, meta) {
+                            return `<code>${data}</code>`
+                        }},
+                    ],
+                    order: [[0, 'asc']],
+                    paging: true,
+                    searching: true
+                })
+    
+                updateInterval = setInterval(function() {
+                    if (!stopQueryLog) {
+                        table.ajax.reload(null, false) // reload without resetting the entire table
+                    }
+                }, 5000) // every 5 seconds
+            })
+        </script>
+        {% if dynamic_analysis_task['error_message'] is not none or dynamic_analysis_task['end_session'] is none %}
+        <form class="show-when-running" method="post" action="{{ url_for('watcher.stop_dynamic_analysis_task', task_id=dynamic_analysis_task['id']) }}">
+            <div>
+                <div class="flex-fill"></div>
+                <button type="submit" name="action" value="stop" onclick="if(confirm('Are you sure you want to stop this task?')) { alert('Task will be stopped early'); } else { event.preventDefault(); }">Stop</button>
+                <div class="flex-fill"></div>
+            </div>
+        </form>
+        <hr>
+        {% endif %}
+    {% endif %}
+{% endblock %}
+
+{% block bottom_tags %}
+{% endblock %}

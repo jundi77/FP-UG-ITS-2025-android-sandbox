@@ -1,0 +1,251 @@
+---
+- name: Install app from apt repository
+  hosts: all
+
+  tasks:
+    - name: Update repository and install needed packages
+      become: true
+      apt:
+        update_cache: yes
+        pkg:
+          - libpulse0
+          - curl
+          - git
+          - wget
+          - unzip
+          - openjdk-17-jdk
+          - python3
+          - python3-pip
+          - python3-venv
+          - qemu-guest-agent
+          - qemu-kvm
+          - tigervnc-standalone-server
+          - openbox
+          - dos2unix
+
+- name: Download needed files/dependencies
+  hosts: all
+
+  vars:
+    magisk_version: "v28.1"
+
+  tasks:
+    - name: Clone Magisk GitHub Repo
+      git:
+        repo: "https://github.com/topjohnwu/Magisk"
+        dest: "~/Magisk"
+        version: "{{ magisk_version }}"
+        depth: 1
+        force: yes
+
+    - name: Append script to insert in Magisk SQLite file that allow ADB superuser
+      lineinfile:
+        path: "~/Magisk/scripts/avd_magisk.sh"
+        line: |
+          magisk --sqlite "INSERT OR REPLACE INTO policies (uid, policy, until, logging, notification) VALUES (2000, 2, 0, 1, 1);"
+        create: false
+
+    - name: Create Magisk out directory
+      file:
+        path: "~/Magisk/out"
+        state: directory
+        mode: "0755"
+
+    - name: Download Magisk APK
+      get_url:
+        url: "https://github.com/topjohnwu/Magisk/releases/download/{{ magisk_version }}/Magisk-{{ magisk_version }}.apk"
+        dest: "~/Magisk/out/app-debug.apk"
+        mode: "0755"
+
+    - name: Download LSPosed_mod
+      get_url:
+        url: "https://github.com/mywalkb/LSPosed_mod/releases/download/v1.9.3_mod/LSPosed-v1.9.3_mod-7244-zygisk-release.zip"
+        dest: "~/lsposed.zip"
+        mode: "0755"
+
+    - name: Upload AVD dynamic analysis web server
+      copy:
+        src: "../host-logger-watcher"
+        dest: "~/"
+        mode: "0755"
+
+    - name: Upload AVD package hooker
+      copy:
+        src: "../hooker.apk"
+        dest: "~/"
+        mode: "0755"
+
+    - name: Upload LSPosed_mod initialized sqlite DB (.db)
+      copy:
+        src: "../modules_config.db"
+        dest: "~/"
+        mode: "0755"
+
+    - name: Upload LSPosed_mod initialized sqlite DB (.db-shm)
+      copy:
+        src: "../modules_config.db-shm"
+        dest: "~/"
+        mode: "0755"
+
+    - name: Upload LSPosed_mod initialized sqlite DB (.db-wal)
+      copy:
+        src: "../modules_config.db-wal"
+        dest: "~/"
+        mode: "0755"
+
+    - name: Download android sdk commandline tools
+      get_url:
+        url: "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+        dest: "~/commandlinetools-linux-11076708_latest.zip"
+        mode: "0755"
+
+- name: Configure AVD dynamic analysis log web server
+  hosts: all
+  tasks:
+    - name: Ensure if venv directory exists
+      file:
+        path: "~/host-logger-watcher/venv"
+        state: directory
+        mode: "0755"
+
+    - name: Create virtual environment on venv
+      command:
+        cmd: "python3 -m venv ~/host-logger-watcher/venv"
+        creates: "~/host-logger-watcher/venv/bin/activate"
+
+    - name: Install python packages requirements
+      pip:
+        requirements: "~/host-logger-watcher/requirements.txt"
+        virtualenv: "~/host-logger-watcher/venv"
+
+- name: Configure services
+  hosts: all
+
+  tasks:
+    - name: Create openbox configuration directory
+      file:
+        recurse: yes
+        path: "/home/{{ ansible_user }}/.config/openbox"
+        state: directory
+        mode: "0755"
+
+    # Restrict openbox menu access
+    - name: Create openbox config for disabling menu
+      copy:
+        dest: "/home/{{ ansible_user }}/.config/openbox/menu.xml"
+        content: |
+          <?xml version="1.0" encoding="UTF-8"?><openbox_menu xmlns="http://openbox.org/3.4/menu"></openbox_menu>
+        mode: "0755"
+
+    # Restrict some window action and force fullscreen
+    - name: Create openbox config to fullscreen every window
+      copy:
+        dest: "/home/{{ ansible_user }}/.config/openbox/rc.xml"
+        content: |
+          <?xml version="1.0" encoding="UTF-8"?><openbox_config xmlns="http://openbox.org/3.4/rc" xmlns:xi="http://www.w3.org/2001/XInclude"><resistance><strength>10</strength><screen_edge_strength>20</screen_edge_strength></resistance><focus><focusNew>yes</focusNew><followMouse>no</followMouse><focusLast>yes</focusLast><underMouse>no</underMouse><focusDelay>200</focusDelay><raiseOnFocus>no</raiseOnFocus></focus><placement><policy>Smart</policy><center>yes</center><monitor>Primary</monitor><primaryMonitor>1</primaryMonitor></placement><theme><name>Clearlooks</name><titleLayout>NLIMC</titleLayout><keepBorder>yes</keepBorder><animateIconify>yes</animateIconify><font place="ActiveWindow"><name>sans</name><size>8</size><weight>bold</weight><slant>normal</slant></font><font place="InactiveWindow"><name>sans</name><size>8</size><weight>bold</weight><slant>normal</slant></font><font place="MenuHeader"><name>sans</name><size>9</size><weight>normal</weight><slant>normal</slant></font><font place="MenuItem"><name>sans</name><size>9</size><weight>normal</weight><slant>normal</slant></font><font place="ActiveOnScreenDisplay"><name>sans</name><size>9</size><weight>bold</weight><slant>normal</slant></font><font place="InactiveOnScreenDisplay"><name>sans</name><size>9</size><weight>bold</weight><slant>normal</slant></font></theme><desktops><number>1</number><firstdesk>1</firstdesk><names></names><popupTime>875</popupTime></desktops><resize><drawContents>yes</drawContents><popupShow>Nonpixel</popupShow><popupPosition>Center</popupPosition><popupFixedPosition><x>10</x><y>10</y></popupFixedPosition></resize><margins><top>0</top><bottom>0</bottom><left>0</left><right>0</right></margins><dock><position>TopLeft</position><floatingX>0</floatingX><floatingY>0</floatingY><noStrut>no</noStrut><stacking>Above</stacking><direction>Vertical</direction><autoHide>no</autoHide><hideDelay>300</hideDelay><showDelay>300</showDelay><moveButton>Middle</moveButton></dock><keyboard></keyboard><mouse><dragThreshold>1</dragThreshold><doubleClickTime>500</doubleClickTime><screenEdgeWarpTime>400</screenEdgeWarpTime><screenEdgeWarpMouse>false</screenEdgeWarpMouse><context name="Frame"><mousebind button="A-Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind><mousebind button="A-Left" action="Click"><action name="Unshade"/></mousebind><mousebind button="A-Left" action="Drag"><action name="Move"/></mousebind><mousebind button="A-Right" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="A-Right" action="Drag"><action name="Resize"/></mousebind><mousebind button="A-Middle" action="Press"><action name="Lower"/><action name="FocusToBottom"/><action name="Unfocus"/></mousebind></context><context name="Titlebar"><mousebind button="Left" action="Drag"><action name="Move"/></mousebind><mousebind button="Left" action="DoubleClick"><action name="ToggleMaximize"/></mousebind><mousebind button="Up" action="Click"><action name="if"><shaded>no</shaded><then><action name="Shade"/><action name="FocusToBottom"/><action name="Unfocus"/><action name="Lower"/></then></action></mousebind><mousebind button="Down" action="Click"><action name="if"><shaded>yes</shaded><then><action name="Unshade"/><action name="Raise"/></then></action></mousebind></context><context name="Titlebar Top Right Bottom Left TLCorner TRCorner BRCorner BLCorner"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Middle" action="Press"><action name="Lower"/><action name="FocusToBottom"/><action name="Unfocus"/></mousebind><mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/><action name="ShowMenu"><menu>client-menu</menu></action></mousebind></context><context name="Top"><mousebind button="Left" action="Drag"><action name="Resize"><edge>top</edge></action></mousebind></context><context name="Left"><mousebind button="Left" action="Drag"><action name="Resize"><edge>left</edge></action></mousebind></context><context name="Right"><mousebind button="Left" action="Drag"><action name="Resize"><edge>right</edge></action></mousebind></context><context name="Bottom"><mousebind button="Left" action="Drag"><action name="Resize"><edge>bottom</edge></action></mousebind><mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/><action name="ShowMenu"><menu>client-menu</menu></action></mousebind></context><context name="TRCorner BRCorner TLCorner BLCorner"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Left" action="Drag"><action name="Resize"/></mousebind></context><context name="Client"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind><mousebind button="Middle" action="Press"><action name="Focus"/><action name="Raise"/></mousebind><mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/></mousebind></context><context name="Icon"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/><action name="ShowMenu"><menu>client-menu</menu></action></mousebind><mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/><action name="ShowMenu"><menu>client-menu</menu></action></mousebind></context><context name="AllDesktops"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Left" action="Click"><action name="ToggleOmnipresent"/></mousebind></context><context name="Shade"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind><mousebind button="Left" action="Click"><action name="ToggleShade"/></mousebind></context><context name="Iconify"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind><mousebind button="Left" action="Click"><action name="Iconify"/></mousebind></context><context name="Maximize"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Middle" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Left" action="Click"><action name="ToggleMaximize"/></mousebind><mousebind button="Middle" action="Click"><action name="ToggleMaximize"><direction>vertical</direction></action></mousebind><mousebind button="Right" action="Click"><action name="ToggleMaximize"><direction>horizontal</direction></action></mousebind></context><context name="Close"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/><action name="Unshade"/></mousebind><mousebind button="Left" action="Click"><action name="Close"/></mousebind></context><context name="Desktop"><mousebind button="Left" action="Press"><action name="Focus"/><action name="Raise"/></mousebind><mousebind button="Right" action="Press"><action name="Focus"/><action name="Raise"/></mousebind></context><context name="Root"></context><context name="MoveResize"></context></mouse><menu></menu><applications><application class="*"><decor>no</decor><fullscreen>yes</fullscreen></application></applications></openbox_config>
+        mode: "0755"
+
+    - name: Create VNC configuration directory
+      file:
+        path: "/home/{{ ansible_user }}/.vnc"
+        state: directory
+        mode: "0755"
+
+    - name: Create VNC xstartup
+      copy:
+        dest: "/home/{{ ansible_user }}/.vnc/xstartup"
+        content: |
+          #!/bin/sh
+          exec openbox-session
+          xmodmap -e "clear all"
+        mode: "0755"
+
+    - name: Create TigerVNC server password (default)
+      shell: "echo UbuntuWatcherVnc | /usr/bin/vncpasswd -f > /home/{{ ansible_user }}/.vnc/passwd"
+
+    - name: Set VNC passwd permission
+      file:
+        path: "/home/{{ ansible_user }}/.vnc/passwd"
+        mode: '0600'
+        state: file
+
+    # Accesible from remote
+    - name: Create TigerVNC service (systemd)
+      become: true
+      copy:
+        dest: /etc/systemd/system/vncserver@.service
+        content: |
+          [Unit]
+          Description=Start TigerVNC on display %i
+          After=syslog.target network.target
+
+          [Service]
+          Type=simple
+          User={{ ansible_user }}
+          WorkingDirectory=/home/{{ ansible_user }}
+          PIDFile=/home/{{ ansible_user }}/.vnc/%H%i.pid
+          ExecStart=/usr/bin/vncserver %i -geometry 480x854 -localhost no
+          ExecStop=/usr/bin/vncserver -kill %i
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+    
+    - name: Create AVD logserver service (systemd)
+      become: true
+      copy:
+        dest: /etc/systemd/system/avdlogserver@.service
+        content: |
+          [Unit]
+          Description=Android Watcher Log Forwarder Service
+          After=network.target
+
+          [Service]
+          User={{ ansible_user }}
+          ExecStart=/home/{{ ansible_user }}/host-logger-watcher/venv/bin/python3 /home/{{ ansible_user }}/host-logger-watcher/app.py --forwarder-port=%i
+          Restart=always
+          Environment="PATH=/usr/bin"
+
+          [Install]
+          WantedBy=multi-user.target
+
+- name: Configure Android SDK commandline tools
+  hosts: all
+
+  tasks:
+    - name: Create Android SDK directory
+      file:
+        path: "~/android-sdk"
+        state: directory
+        mode: "0755"
+
+    - name: Extract Android SDK commandline tools to Android SDK directory
+      unarchive:
+        remote_src: yes
+        src: "~/commandlinetools-linux-11076708_latest.zip"
+        dest: "~/android-sdk"
+        mode: "0755"
+
+    - name: Create Android SDK commandline tools latest directory
+      file:
+        path: "~/android-sdk/cmdline-tools/latest"
+        state: directory
+        mode: "0755"
+
+    - name: Move Android SDK commandline tools to latest directory (1/3)
+      command:
+        cmd: "cp ~/android-sdk/cmdline-tools/NOTICE.txt ~/android-sdk/cmdline-tools/source.properties ~/android-sdk/cmdline-tools/latest/"
+
+    - name: Move Android SDK commandline tools to latest directory (2/3)
+      command:
+        cmd: "cp -r ~/android-sdk/cmdline-tools/bin ~/android-sdk/cmdline-tools/lib/ ~/android-sdk/cmdline-tools/latest/"
+
+    - name: Move Android SDK commandline tools to latest directory (3/3)
+      command:
+        cmd: "rm -rf ~/android-sdk/cmdline-tools/bin ~/android-sdk/cmdline-tools/lib/ ~/android-sdk/cmdline-tools/NOTICE.txt ~/android-sdk/cmdline-tools/source.properties"
+
+    - name: Run update with sdkmanager
+      shell: sdkmanager --update
+
+    - name: Install Android SDK emulator and platform-tools
+      shell: yes | sdkmanager --install "emulator" "platform-tools"

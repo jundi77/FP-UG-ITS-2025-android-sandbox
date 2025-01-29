@@ -1,0 +1,19 @@
+{% extends 'watcher/vm/new/base.html' %}
+{% block setup_title %}2. Select Proxmox VE Node{% endblock %}
+{% block setup_description %}Select the Proxmox VE node that will be used.{% endblock %}
+{% block setup_form %}
+    <form method="post">
+        <label for="node">Proxmox Nodes</label>
+        <select name="node" required>
+            {% for node in nodes %}
+                <option value="{{ node }}">{{ node }}</option>
+            {% endfor %}
+        </select>
+        <input type="hidden" name="step" value="2">
+        <div class="flex-reverse">
+            <button type="submit" name="action" value="next">Continue</button>
+            <div class="flex-fill"></div>
+            <button type="submit" name="action" value="previous">Back</button>
+        </div>
+    </form>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block prev_menu %}
+<li>
+    <a href="{{ url_for('watcher.vm_menu') }}">&lt; Back to VM menu</a>
+</li>
+{% endblock %}
+
+{% block title %}{% block tab_title %}Android Analysis VM #{{ config_id }}{% endblock %}{% endblock %}
+{% block description %}<p class="body">VM details.</p>{% endblock %}
+{% block content %}
+    <article class="post">
+        <header>
+            <div class="">
+                <h1>VM Info</h1>
+            </div>
+        </header>
+        <br>
+        <table id="vm-details">
+            <tr>
+                <td>Proxmox Host</td>
+                <td>{{ vm['proxmox_host_address'] }}</td>
+            </tr>
+            <tr>
+                <td>Proxmox Account</td>
+                <td>{{ vm['proxmox_account_username'] }}</td>
+            </tr>
+            <tr>
+                <td>Proxmox Node</td>
+                <td>{{ vm['proxmox_node'] }}</td>
+            </tr>
+            <tr>
+                <td>ID</td>
+                <td>{{ vm['proxmox_vm_android_analysis_id'] }}</td>
+            </tr>
+            <tr>
+                <td>Name</td>
+                <td>{{ vm['proxmox_vm_android_analysis_name'] }}</td>
+            </tr>
+            <tr>
+                <td>IP Address</td>
+                {% if vm['ip'] is none %}
+                    <td>Not found. Maybe VM is still booting?</td>
+                {% else %}
+                    <td>{{ vm['proxmox_vm_android_analysis_ip'] }} on {{ vm['proxmox_bridge'] }}</td>
+                {% endif %}
+            </tr>
+            <tr>
+                <td>CPU</td>
+                <td>{{ vm['proxmox_vm_android_analysis_core'] }} core(s)</td>
+            </tr>
+            <tr>
+                <td>RAM</td>
+                <td>{{ vm['proxmox_vm_android_analysis_memory'] }}M</td>
+            </tr>
+            <tr>
+                <td>Disk</td>
+                <td>{{ vm['proxmox_vm_android_analysis_disk'] }}G</td>   
+            </tr>
+        </table>
+    </article>
+    <hr>
+    <article class="post">
+        <header>
+            <div class="">
+                <h1>VM control</h1>
+            </div>
+        </header>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('watcher.vm_force_start', config_id=config_id) }}">
+            <button type="submit" name="action">Force Start VM</button>
+        </form>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('watcher.vm_force_reset', config_id=config_id) }}">
+            <button type="submit" name="action" onclick="if(confirm('Are you sure you want to force reset the VM?')) { console.log('Reset VM'); } else { event.preventDefault(); }">Force Reset VM</button>
+        </form>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('watcher.vm_force_delete', config_id=config_id) }}">
+            <button type="submit" name="action" onclick="if(confirm('Are you sure you want to force delete this VM?')) { console.log('Delete VM'); } else { event.preventDefault(); }">Force Delete VM</button>
+        </form>
+    </article>
+    <hr>
+{% endblock %}

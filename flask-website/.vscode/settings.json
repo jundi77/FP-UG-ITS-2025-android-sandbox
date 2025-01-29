@@ -1,0 +1,11 @@
+{
+    "sqltools.useNodeRuntime": true,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "driver": "SQLite",
+            "database": "/home/ubuntu/Documents/ui-webserver-management-watcher/instance/flaskr.sqlite",
+            "name": "flaskr.sqlite"
+        }
+    ]
+}

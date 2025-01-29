@@ -1,0 +1,8 @@
+---
+- name: Run the provided command
+  hosts: all
+  tasks:
+    - name: Run given command
+      command:
+        cmd: "adb shell su -c {{ analysis_adb_shell_cmd }}"
+      ignore_errors: true
